@@ -1,15 +1,17 @@
 extends Node2D
 
-## Sala principal: construye la habitación, al jugador, cámara, HUD y enemigos.
+## Sala principal: construye la habitación, al jugador, cámara, HUD, enemigos
+## e inventario.
 ## Arranque normal: `godot-headless --path . --quit-after 60` (prueba de carga).
-## Con usuario:    `godot-headless --path . -- --test` — batería completa
-## (movimiento, espada, muerte de enemigo, contacto, i-frames) y sale con
-## código 0 = todo OK / 1 = hay FALLO.
+## Con usuario:    `godot-headless --path . -- --test` — batería de 9
+## aserciones (movimiento, espada, muerte, contacto, i-frames, stacks,
+## descarte, defensa del equipo, velocidad del equipo); exit 0 = todo OK.
 
 ## Preloads: sin referencias al class_name global, que headless no resuelve
 ## sin pasar por el editor (evitamos la dependencia del class cache).
 const FICHA_JUGADOR := preload("res://scripts/jugador.gd")
 const FICHA_ENEMIGO := preload("res://scripts/enemigo.gd")
+const FICHA_INVENTARIO := preload("res://scripts/inventario.gd")
 const EscenaJugador := preload("res://scenes/jugador.tscn")
 const EscenaEnemigo := preload("res://scenes/enemigo.tscn")
 
@@ -23,17 +25,20 @@ const ENEMIGOS_MUNDO: Array = [
 ]
 
 var jugador  # dinámico a propósito: sin tipo global (ver preload de arriba)
+var inventario  # RefCounted del inventario (mismo motivo)
 var _hud: Label
 
 
 func _ready() -> void:
+	var es_test: bool = OS.get_cmdline_user_args().has("--test")
 	_registrar_entradas()
 	_crear_sala()
 	_crear_jugador()
 	_crear_hud()
-	_crear_enemigos_mundo()
+	_crear_inventario()
+	_crear_enemigos_mundo(not es_test)  # sin IA en test: nada se mueve solo
 	print("KIMERIAN_LISTO sala=", ANCHO_SALA, "x", ALTO_SALA)
-	if OS.get_cmdline_user_args().has("--test"):
+	if es_test:
 		_test_bateria()
 
 
@@ -114,16 +119,22 @@ func _crear_hud() -> void:
 
 func _texto_vida(v: int) -> String:
 	var texto := "VIDA "
-	for i in FICHA_JUGADOR.VIDA_MAX:
+	for i in jugador.vida_max:  # corona con el equipo: los corazones crecen
 		texto += "♥" if i < v else "♡"
 	return texto
 
 
-func _crear_enemigos_mundo() -> void:
+func _crear_inventario() -> void:
+	inventario = FICHA_INVENTARIO.new()
+	jugador.inventario = inventario
+	inventario.actualizado.connect(func() -> void: jugador.refrescar_estadisticas())
+
+
+func _crear_enemigos_mundo(con_ia: bool) -> void:
 	for fila in ENEMIGOS_MUNDO:
 		var enemigo = EscenaEnemigo.instantiate()
 		enemigo.position = fila[0]
-		enemigo.ia_activa = fila[1]
+		enemigo.ia_activa = fila[1] and con_ia
 		enemigo.objetivo = jugador
 		add_child(enemigo)
 
@@ -137,8 +148,8 @@ func _pulsar(accion: String) -> void:
 
 
 func _test_bateria() -> void:
-	## Cinco comprobaciones con salida de una línea cada una; exit 0 solo si
-	## las cinco dicen OK. Tiempos en segundos de juego (create_timer).
+	## Nueve comprobaciones, una línea por aserción; exit 0 solo si las nueve
+	## dicen OK. Tiempos en segundos de juego (create_timer).
 	var resultados: Array[String] = []
 
 	# 1) Movimiento: 0,5 s pulsando derecha ⇒ >30 px en X y 5 PV intactos.
@@ -192,6 +203,62 @@ func _test_bateria() -> void:
 	var ok5: bool = jugador.vida == FICHA_JUGADOR.VIDA_MAX - 1
 	resultados.append("TEST_INVULNERABLE vida=%d -> %s"
 			% [jugador.vida, "OK" if ok5 else "FALLO"])
+
+	# Fuera el enemigo del contacto: si vive, golpearía al expirar los i-frames
+	# y arruinaría los aserciones siguientes.
+	enemigo2.queue_free()
+
+	# 6) Inventario: (a) la poción funde en stack —2 en 1 hueco—, (b) 120
+	# monedas se parten por el tope de stack (99 + 21 en dos huecos) y (c) 2000
+	# monedas más NO caben: se llenan los 16 huecos y devuelve false.
+	var caben_pociones: bool = inventario.agregar("pocion", 2)
+	var huecos_con_pocion: int = inventario.contar_ocupados()
+	var caben_monedas: bool = inventario.agregar("moneda", 120)
+	var monedas_split: int = inventario.total("moneda")
+	var huecos_split: int = inventario.contar_ocupados()
+	var caben_2000: bool = inventario.agregar("moneda", 2000)
+	var ok6: bool = caben_pociones and inventario.total("pocion") == 2 \
+			and huecos_con_pocion == 1 and caben_monedas and monedas_split == 120 \
+			and huecos_split == 3 and not caben_2000 \
+			and inventario.contar_ocupados() == 16
+	resultados.append("TEST_INVENTARIO pila_pocion=%d huecos=%d/16 monedas=%d desbordado=%s -> %s"
+			% [inventario.total("pocion"), inventario.contar_ocupados(),
+			   inventario.total("moneda"), str(not caben_2000),
+			   "OK" if ok6 else "FALLO"])
+
+	# 7) Descarte: tirar el hueco de pociones ⇒ la pila entera desaparece y
+	# los 16 huecos pasan a 15.
+	inventario.descartar(inventario.indice_de("pocion"))
+	var ok7: bool = inventario.total("pocion") == 0 and inventario.contar_ocupados() == 15
+	resultados.append("TEST_DESCARTE huecos=%d pociones=%d -> %s"
+			% [inventario.contar_ocupados(), inventario.total("pocion"),
+			   "OK" if ok7 else "FALLO"])
+
+	# 8) Equipo defensa: casco de bronce (+1) ⇒ el contacto de 1 PV se absorbe
+	# entero. Se espera a que caduquen los i-frames del paso 4 (0,75 s).
+	await get_tree().create_timer(0.35).timeout
+	inventario.agregar("casco_bronce")
+	var ok8a: bool = inventario.equipar(inventario.indice_de("casco_bronce"))
+	var ok8b: bool = inventario.bonus("defensa") == 1 and jugador.defensa == 1
+	var enemigo3 = EscenaEnemigo.instantiate()
+	enemigo3.ia_activa = false
+	enemigo3.objetivo = jugador
+	enemigo3.position = jugador.global_position + Vector2(16, 0)
+	add_child(enemigo3)
+	await get_tree().create_timer(0.3).timeout
+	var ok8c: bool = jugador.vida == FICHA_JUGADOR.VIDA_MAX - 1  # sigue en 4: golpe absorbido
+	var ok8: bool = ok8a and ok8b and ok8c
+	resultados.append("TEST_EQUIPO_DEFENSA defensa=%d vida=%d -> %s"
+			% [jugador.defensa, jugador.vida, "OK" if ok8 else "FALLO"])
+
+	# 9) Equipo velocidad: botas ligeras (+30) ⇒ velocidad efectiva sube.
+	inventario.agregar("botas_ligeras")
+	var ok9a: bool = inventario.equipar(inventario.indice_de("botas_ligeras"))
+	var ok9: bool = ok9a and is_equal_approx(
+			jugador.velocidad_efectiva, FICHA_JUGADOR.VELOCIDAD + 30.0)
+	resultados.append("TEST_EQUIPO_VEL velocidad=%.0f -> %s"
+			% [jugador.velocidad_efectiva, "OK" if ok9 else "FALLO"])
+	enemigo3.queue_free()
 
 	var todos := true
 	for linea in resultados:

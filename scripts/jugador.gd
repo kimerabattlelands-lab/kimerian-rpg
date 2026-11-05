@@ -21,6 +21,10 @@ const DURACION_GOLPE := 0.18      # s
 const ENFRIAMIENTO_ATAQUE := 0.35 # s de espera tras cada golpe
 
 var vida: int = VIDA_MAX
+var vida_max: int = VIDA_MAX          # base + bonus del equipo
+var defensa: int = 0                  # suma de bonus "defensa" del equipo
+var velocidad_efectiva: float = VELOCIDAD  # base + bonus "velocidad" del equipo
+var inventario                         # asignado por main; RefCounted dinámico
 var direccion: Vector2 = Vector2.DOWN  # última dirección (sprite y espada)
 var _invulnerable: int = 0
 var _retroceso: float = 0.0
@@ -79,7 +83,7 @@ func _physics_process(delta: float) -> void:
 		var entrada := Input.get_vector("mover_izq", "mover_der", "mover_arriba", "mover_abajo")
 		if entrada != Vector2.ZERO:
 			direccion = entrada.normalized()
-			velocity = direccion * VELOCIDAD
+			velocity = direccion * velocidad_efectiva
 		else:
 			velocity = Vector2.ZERO  # corte nítido al soltar
 		if Input.is_action_just_pressed("atacar") and _cd_ataque <= 0.0:
@@ -114,7 +118,10 @@ func recibir_danio(cantidad: int, origen: Vector2) -> bool:
 	## Devuelve true si el daño se aplicó (false = invulnerable o ya caído).
 	if _invulnerable > 0 or vida <= 0:
 		return false
-	vida = maxi(0, vida - cantidad)
+	var danio := cantidad - defensa
+	if danio <= 0:
+		return false  # la armadura absorbe el golpe entero (sin i-frames: no toca)
+	vida = maxi(0, vida - danio)
 	_invulnerable = FRAMES_INVULNERABLE
 	var dir := global_position - origen
 	_empuje = (dir if dir != Vector2.ZERO else Vector2.UP).normalized() * FUERZA_RETROCESO
@@ -123,3 +130,18 @@ func recibir_danio(cantidad: int, origen: Vector2) -> bool:
 	if vida == 0:
 		muerto.emit()
 	return true
+
+
+func refrescar_estadisticas() -> void:
+	## Recalcula vida máxima, defensa y velocidad a partir del equipo equipado.
+	if inventario == null:
+		return
+	var bonus_vida: int = inventario.bonus("vida_max")
+	var nuevo_max: int = VIDA_MAX + bonus_vida
+	if nuevo_max > vida_max:
+		vida += nuevo_max - vida_max  # equipar vida máxima otorga corazones ya
+	vida_max = maxi(1, nuevo_max)
+	vida = mini(vida, vida_max)
+	defensa = inventario.bonus("defensa")
+	velocidad_efectiva = VELOCIDAD + inventario.bonus("velocidad")
+	vida_cambiada.emit(vida)

@@ -26,7 +26,9 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
 - [x] M1 — sala + jugador (5 PV, 8 direcciones) + cámara + HUD + test headless
 - [x] M2 — espada (estocada direccional, CD, retroceso y destello del enemigo)
 - [x] M3 — enemigos con IA (patrulla determinista, persecución, contacto 1 PV, 2 PV de vida)
-- [ ] M4 — inventario (stacks, descarte) y 4 slots de equipo × 3 objetos
+- [x] M4a — inventario (modelo): stacks con tope, desbordamiento a 16 huecos, descarte de pila,
+  4 slots de equipo × 3 objetos con propiedades (defensa/velocidad/vida_max) aplicadas al jugador
+- [ ] M4b — UI de inventario en pantalla: abrir/cerrar, navegar, usar poción, equipar y descartar
 - [ ] M5 — elementos del universo Kimerian (KB de escritura-ia) y arte CC0
 - [ ] M6 — export web + publicación en Telegram
 

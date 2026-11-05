@@ -25,6 +25,9 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
 
 ## Estado
 
+**PROYECTO TERMINADO — 2026-11-05** (orden de Edward). Último hito: M7b. Demo pública:
+https://kimerabattlelands-lab.github.io/kimerian-rpg/ · 22 aserciones en verde · 15 commits.
+
 - [x] M1 — sala + jugador (5 PV, 8 direcciones) + cámara + HUD + test headless
 - [x] M2 — espada (estocada direccional, CD, retroceso y destello del enemigo)
 - [x] M3 — enemigos con IA (patrulla determinista, persecución, contacto 1 PV, 2 PV de vida)

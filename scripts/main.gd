@@ -3,10 +3,11 @@ extends Node2D
 ## Sala principal: construye la habitación, al jugador, cámara, HUD, enemigos
 ## e inventario.
 ## Arranque normal: `godot-headless --path . --quit-after 60` (prueba de carga).
-## Con usuario:    `godot-headless --path . -- --test` — batería de 16
+## Con usuario:    `godot-headless --path . -- --test` — batería de 20
 ## aserciones (movimiento, espada, muerte, contacto, i-frames, stacks,
-## descarte, defensa, velocidad, la UI: abrir/usar/descartar/cerrar, y los
-## 3 objetos Kimerian recogidos de la sala); exit 0 = todo OK.
+## descarte, defensa, velocidad, la UI: abrir/usar/descartar/cerrar, los
+## 3 objetos Kimerian recogidos de la sala, y controles táctiles: mover,
+## ataque y botón de objetos); exit 0 = todo OK.
 
 ## Preloads: sin referencias al class_name global, que headless no resuelve
 ## sin pasar por el editor (evitamos la dependencia del class cache).
@@ -15,6 +16,7 @@ const FICHA_ENEMIGO := preload("res://scripts/enemigo.gd")
 const FICHA_INVENTARIO := preload("res://scripts/inventario.gd")
 const FICHA_DATOS := preload("res://scripts/datos_objetos.gd")
 const FICHA_UI := preload("res://scripts/ui_inventario.gd")
+const FICHA_TACTIL := preload("res://scripts/ui_tactil.gd")
 const EscenaJugador := preload("res://scenes/jugador.tscn")
 const EscenaEnemigo := preload("res://scenes/enemigo.tscn")
 
@@ -38,6 +40,7 @@ const RELIQUIAS_MUNDO: Array = [
 var jugador  # dinámico a propósito: sin tipo global (ver preload de arriba)
 var inventario  # RefCounted del inventario (mismo motivo)
 var ui  # CanvasLayer de la UI (mismo motivo)
+var ui_tactil  # CanvasLayer de controles táctiles (mismo motivo)
 var _hud: Label
 var _reliquias: Dictionary = {}  # id -> Area2D en sala (borrado al recoger)
 
@@ -51,6 +54,7 @@ func _ready() -> void:
 	_crear_inventario()
 	_crear_ui()
 	_crear_reliquias()
+	_crear_tactil()
 	_crear_enemigos_mundo(not es_test)  # sin IA en test: nada se mueve solo
 	print("KIMERIAN_LISTO sala=", ANCHO_SALA, "x", ALTO_SALA)
 	if es_test:
@@ -155,6 +159,11 @@ func _crear_ui() -> void:
 	add_child(ui)
 
 
+func _crear_tactil() -> void:
+	ui_tactil = FICHA_TACTIL.new()
+	add_child(ui_tactil)
+
+
 func _crear_enemigos_mundo(con_ia: bool) -> void:
 	for fila in ENEMIGOS_MUNDO:
 		var enemigo = EscenaEnemigo.instantiate()
@@ -216,8 +225,8 @@ func _pulsar(accion: String) -> void:
 
 
 func _test_bateria() -> void:
-	## Dieciséis comprobaciones, una línea por aserción; exit 0 solo si las
-	## dieciséis dicen OK. Tiempos en segundos de juego (create_timer).
+	## Veinte comprobaciones, una línea por aserción; exit 0 solo si las
+	## veinte dicen OK. Tiempos en segundos de juego (create_timer).
 	var resultados: Array[String] = []
 
 	# 1) Movimiento: 0,5 s pulsando derecha ⇒ >30 px en X y 5 PV intactos.
@@ -418,6 +427,70 @@ func _test_bateria() -> void:
 					FICHA_JUGADOR.VELOCIDAD + 20.0)
 	resultados.append("TEST_OBJ_K3_BOTAS recogido=%s velocidad=%.0f -> %s"
 			% [str(ok16a), jugador.velocidad_efectiva, "OK" if ok16 else "FALLO"])
+
+	# 17) Táctil: las 6 zonas existen y un toque mantenido en ▶ mueve al jugador.
+	var ok17a: bool = ui_tactil.zonas.size() == 6 and ui_tactil.activo
+	var pos_t: Vector2 = jugador.global_position
+	ui_tactil.toque(77, ui_tactil.centro("der"), true)
+	await get_tree().create_timer(0.3).timeout
+	ui_tactil.toque(77, ui_tactil.centro("der"), false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # el release aplazado ya se aplicó
+	var dx_t: float = jugador.global_position.x - pos_t.x
+	var ok17: bool = ok17a and dx_t > 20.0
+	resultados.append("TEST_TACTIL_MOVER zonas=%d dx=%.1f -> %s"
+			% [ui_tactil.zonas.size(), dx_t, "OK" if ok17 else "FALLO"])
+
+	# 18) Táctil ataque: toque en A ⇒ estocada que baja al enemigo de 2 a 1 PV.
+	var enemigo4 = EscenaEnemigo.instantiate()
+	enemigo4.ia_activa = false
+	enemigo4.objetivo = jugador
+	enemigo4.position = jugador.global_position + Vector2(34, 0)
+	add_child(enemigo4)
+	jugador.direccion = Vector2.RIGHT
+	ui_tactil.toque(78, ui_tactil.centro("ataque"), true)
+	await get_tree().create_timer(0.15).timeout
+	ui_tactil.toque(78, ui_tactil.centro("ataque"), false)
+	await get_tree().physics_frame
+	var ok18: bool = is_instance_valid(enemigo4) \
+			and enemigo4.vida == FICHA_ENEMIGO.VIDA_MAX - 1
+	resultados.append("TEST_TACTIL_ATAQUE vida_enemigo=%s -> %s"
+			% ["libre" if not is_instance_valid(enemigo4) else str(enemigo4.vida),
+			   "OK" if ok18 else "FALLO"])
+	enemigo4.queue_free()
+
+	# 19) Táctil objetos: toque en OBJ ⇒ abre y vuelve a cerrar el inventario.
+	ui_tactil.toque(79, ui_tactil.centro("objetos"), true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	ui_tactil.toque(79, ui_tactil.centro("objetos"), false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var abrio_con_toque: bool = ui.abierto
+	ui_tactil.toque(80, ui_tactil.centro("objetos"), true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	ui_tactil.toque(80, ui_tactil.centro("objetos"), false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var ok19: bool = abrio_con_toque and not ui.abierto \
+			and not jugador.entrada_bloqueada
+	resultados.append("TEST_TACTIL_OBJETOS abrio=%s cerro=%s -> %s"
+			% [str(abrio_con_toque), str(not ui.abierto),
+			   "OK" if ok19 else "FALLO"])
+
+	# 20) Toque rápido (baja y sube en el mismo frame): el edge no se pierde
+	# porque el release se aplaza un frame — la estocada sale igual.
+	await get_tree().create_timer(0.6).timeout  # enfriamiento de la estocada 18
+	ui_tactil.toque(81, ui_tactil.centro("ataque"), true)
+	ui_tactil.toque(81, ui_tactil.centro("ataque"), false)  # mismo frame
+	await get_tree().physics_frame  # F+1 arranca: el ataque se dispara en sus callbacks
+	await get_tree().physics_frame  # F+2: ya procesado ⇒ el swing está activo
+	var golpe_rapido: bool = jugador.espada.visible
+	await get_tree().create_timer(0.3).timeout  # dejar terminar el swing
+	var ok20: bool = golpe_rapido
+	resultados.append("TEST_TACTIL_TOQUE_RAPIDO espada=%s -> %s"
+			% [str(golpe_rapido), "OK" if ok20 else "FALLO"])
 
 	var todos := true
 	for linea in resultados:

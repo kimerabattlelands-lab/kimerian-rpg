@@ -9,8 +9,8 @@ Godot 4.7 · GDScript · pixel art 2D · pensada para exportar a web y probar de
 # prueba de carga (arranca, 60 frames, sale)
 godot-headless --path . --quit-after 60
 
-# batería de 16 aserciones (movimiento, combate, inventario, equipo, UI,
-# recogida de los 3 objetos Kimerian) — exit 0 = todo OK
+# batería de 20 aserciones (movimiento, combate, inventario, equipo, UI,
+# recogida de los 3 objetos Kimerian, controles táctiles) — exit 0 = todo OK
 godot-headless --path . -- --test
 ```
 
@@ -48,6 +48,10 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
   Verificado con `curl`: 200 en `index.html`, `index.wasm` (39.514.754 B) y `index.pck` (59.172 B).
   El export termina en signal 11 al salir (misma incidencia mono que `--import`): **exporta bien y revienta
   al cerrar**; el build es válido.
+- [x] M7 — controles táctiles: cruz de movimiento (◀▶▲▼), botón de ataque (A) y botón de
+  objetos (OBJ) por `InputEventScreenTouch` (multitouch real); mandan a las MISMAS acciones del
+  teclado — teclado y táctil conviven. El release se aplaza un frame para que un toque rápido
+  no pierda el `just_pressed`. Batería de 20 aserciones.
 - [x] M6 (resto) — **enlace público sin Tailscale**, autorizado por Edward (2026-11-05): repo
   `kimerabattlelands-lab/kimerian-rpg` pasado a **público**, build copiado a `docs/` y GitHub Pages
   servido desde `main:/docs`. Verificado: `index.html=200`, `index.wasm=200` (39.514.754 B),
@@ -56,7 +60,14 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
 
 ## Cómo jugar
 
-Abre en el móvil con Tailscale activo: **http://100.96.248.5:8099/index.html**
+**Público (sin nada instalado):** https://kimerabattlelands-lab.github.io/kimerian-rpg/
+
+**Controles:** móvil → cruz inferior izquierda (mover), **A** inferior derecha (espada),
+**OBJ** arriba a la derecha (inventario: dentro, ↑↓ navegan, **E** usa/equipa, **Q** descarta,
+**I/ OBJ** cierra). Teclado → WASD/flechas, **Espacio/J/X** ataca, **I** inventario, **E** usa,
+**Q** descarta.
+
+Opción local con Tailscale: **http://100.96.248.5:8099/index.html**
 
 El servicio se levanta solo (`systemctl --user status kimerian-web`); si se para,
 `systemctl --user restart kimerian-web`.

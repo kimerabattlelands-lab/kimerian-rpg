@@ -43,7 +43,19 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
 - [ ] M5 (resto) — queda: más objetos/lore del KB (la "hoja de
   kimerianita" del ejemplo no existe en el KB: no está canonizada) y
   descripción de equipo en la UI (hoy solo muestra slot + bonus numérico).
-- [ ] M6 — export web + publicación en Telegram
+- [x] M6 — export web **hecho** y servido: `build/index.html` (39 MB de wasm) en
+  `http://100.96.248.5:8099/index.html` por el servicio `kimerian-web` (systemd de usuario, sólo tailnet).
+  Verificado con `curl`: 200 en `index.html`, `index.wasm` (39.514.754 B) y `index.pck` (59.172 B).
+  El export termina en signal 11 al salir (misma incidencia mono que `--import`): **exporta bien y revienta
+  al cerrar**; el build es válido.
+- [ ] M6 (resto) — publicarlo como enlace jugable en Telegram y probar en el móvil de Edward.
+
+## Cómo jugar
+
+Abre en el móvil con Tailscale activo: **http://100.96.248.5:8099/index.html**
+
+El servicio se levanta solo (`systemctl --user status kimerian-web`); si se para,
+`systemctl --user restart kimerian-web`.
 
 ## Reglas del proyecto
 

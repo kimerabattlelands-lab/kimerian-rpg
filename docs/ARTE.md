@@ -28,7 +28,7 @@ proyecto** con `python3/PIL` y queda dicho aquí.
 | `arte/amuleto_mil_islas.png` (16×16) | Ídem: moneda octogonal de oro con isla (`lugares/las-mil-islas.md`) | CC0 |
 | `arte/botas_abordaje.png` (16×16) | Ídem: bota pirata de cuero con hebilla (`lugares/las-mil-islas.md`) | CC0 |
 | `arte/generar_arte.py` | Fuente de todo lo anterior: ejecutar `python3 arte/generar_arte.py` regenera los 5 PNG | CC0 |
-| `arte/sprites.gd` | Carga los PNG en runtime (`Image.load` → `ImageTexture`) | — (GDScript, código del proyecto) |
+| `arte/sprites.gd` | Resuelve la textura por id con `preload()` (resuelve al `.ctex` importado, única vía válida en export) | — (GDScript, código del proyecto) |
 
 Ningún fichero procede de un tercero: no había pack en el disco.
 

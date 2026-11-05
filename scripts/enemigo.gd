@@ -27,6 +27,12 @@ var _retroceso: float = 0.0
 var _empuje: Vector2 = Vector2.ZERO
 
 
+func _ready() -> void:
+	var tex := preload("res://arte/sprites.gd").textura("enemigo")
+	if tex != null:
+		$Cuerpo.texture = tex  # sprite 16x16 generado (ver docs/ARTE.md)
+
+
 func _physics_process(delta: float) -> void:
 	if _retroceso > 0.0:
 		_retroceso -= delta

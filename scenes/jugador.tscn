@@ -13,6 +13,4 @@ script = ExtResource("1_jug")
 [node name="Colision" type="CollisionShape2D" parent="."]
 shape = SubResource("shape_cuerpo")
 
-[node name="Cuerpo" type="Polygon2D" parent="."]
-color = Color(0.84, 0.72, 0.35, 1)
-polygon = PackedVector2Array(-7, -7, 7, -7, 7, 7, -7, 7)
+[node name="Cuerpo" type="Sprite2D" parent="."]

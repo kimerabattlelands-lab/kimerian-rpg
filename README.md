@@ -36,8 +36,11 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
   **Amuleto de Las Mil Islas** (pecho, defensa +1), **Botas de abordaje**
   (botas, velocidad +20). Fuente KB: `materiales/corinarius.md`,
   `lugares/las-mil-islas.md`. Batería de 16 tests en verde.
-- [ ] M5 (resto) — queda: arte CC0 con `docs/ARTE.md` (ahora formas simples
-  ColorRect/Polygon2D/Label), más objetos/lore del KB (la "hoja de
+- [x] M5b — arte CC0: sprites 16×16 generados con `arte/generar_arte.py`
+  (no había pack en el disco; ver `docs/ARTE.md` con origen y licencia de
+  cada fichero) aplicados a jugador, enemigo y los 3 objetos. Batería de
+  16 tests en verde.
+- [ ] M5 (resto) — queda: más objetos/lore del KB (la "hoja de
   kimerianita" del ejemplo no existe en el KB: no está canonizada) y
   descripción de equipo en la UI (hoy solo muestra slot + bonus numérico).
 - [ ] M6 — export web + publicación en Telegram

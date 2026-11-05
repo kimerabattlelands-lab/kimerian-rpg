@@ -189,26 +189,12 @@ func _crear_reliquias() -> void:
 		_reliquias[id] = area
 
 
-func _visual_reliquia(id: String) -> Polygon2D:
-	## Silueta a mano: rombo, octógono o rectángulo según el objeto.
-	var forma := Polygon2D.new()
-	match id:
-		"cristal_corinarius":  # cristal lunar azul oscuro (corinarius)
-			forma.polygon = PackedVector2Array([
-				Vector2(0, -11), Vector2(9, 0), Vector2(0, 11), Vector2(-9, 0)])
-			forma.color = Color("2b5fd9")
-		"amuleto_mil_islas":  # moneda octogonal de oro de Las Mil Islas
-			var pts := PackedVector2Array()
-			for i in 8:
-				pts.append(Vector2.from_angle(TAU * i / 8.0) * 10.0)
-			forma.polygon = pts
-			forma.color = Color("e8c547")
-		_:  # botas de abordaje
-			forma.polygon = PackedVector2Array([
-				Vector2(-8, -11), Vector2(8, -11), Vector2(8, 4),
-				Vector2(13, 8), Vector2(13, 12), Vector2(-8, 12)])
-			forma.color = Color("b06a3b")
-	return forma
+func _visual_reliquia(id: String) -> Sprite2D:
+	## Sprite PNG generado (arte/generar_arte.py, ver docs/ARTE.md); el
+	## nombre del fichero es el id del objeto en datos_objetos.gd.
+	var sprite := Sprite2D.new()
+	sprite.texture = preload("res://arte/sprites.gd").textura(id)
+	return sprite
 
 
 func _recoger(id: String, area: Area2D, cuerpo: Node2D) -> void:

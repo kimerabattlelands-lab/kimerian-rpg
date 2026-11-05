@@ -39,6 +39,9 @@ var espada: Area2D
 
 func _ready() -> void:
 	_crear_espada()
+	var tex := preload("res://arte/sprites.gd").textura("jugador")
+	if tex != null:
+		$Cuerpo.texture = tex  # sprite 16x16 generado (ver docs/ARTE.md)
 
 
 func _crear_espada() -> void:

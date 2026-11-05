@@ -9,7 +9,8 @@ Godot 4.7 · GDScript · pixel art 2D · pensada para exportar a web y probar de
 # prueba de carga (arranca, 60 frames, sale)
 godot-headless --path . --quit-after 60
 
-# batería de 13 aserciones (movimiento, combate, inventario, equipo, UI) — exit 0 = todo OK
+# batería de 16 aserciones (movimiento, combate, inventario, equipo, UI,
+# recogida de los 3 objetos Kimerian) — exit 0 = todo OK
 godot-headless --path . -- --test
 ```
 
@@ -30,7 +31,15 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
   4 slots de equipo × 3 objetos con propiedades (defensa/velocidad/vida_max) aplicadas al jugador
 - [x] M4b — UI de inventario en pantalla: abrir/cerrar con [I], navegar [↑↓], usar/equipar [E],
   descartar pila [Q]; bloquea al jugador mientras está abierta (el mundo sigue)
-- [ ] M5 — elementos del universo Kimerian (KB de escritura-ia) y arte CC0
+- [x] M5a — 3 objetos del universo Kimerian como ítems con equipo, tirados en la
+  sala y recogibles: **Cristal de corinarius** (cabeza, vida_max +2),
+  **Amuleto de Las Mil Islas** (pecho, defensa +1), **Botas de abordaje**
+  (botas, velocidad +20). Fuente KB: `materiales/corinarius.md`,
+  `lugares/las-mil-islas.md`. Batería de 16 tests en verde.
+- [ ] M5 (resto) — queda: arte CC0 con `docs/ARTE.md` (ahora formas simples
+  ColorRect/Polygon2D/Label), más objetos/lore del KB (la "hoja de
+  kimerianita" del ejemplo no existe en el KB: no está canonizada) y
+  descripción de equipo en la UI (hoy solo muestra slot + bonus numérico).
 - [ ] M6 — export web + publicación en Telegram
 
 ## Reglas del proyecto

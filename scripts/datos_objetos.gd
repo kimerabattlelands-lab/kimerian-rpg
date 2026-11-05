@@ -1,7 +1,11 @@
 extends RefCounted
 
 ## Catálogo de objetos en DATOS: añadir contenido no toca ni el modelo ni la
-## UI. Nombres de marcador — M5 los reetiqueta con términos de Kimerian.
+## UI. Los tres últimos son del universo Kimerian (M5a) y salen en la sala
+## para recogerlos (ver RELIQUIAS_MUNDO en main.gd):
+##   cristal_corinarius — materiales/corinarius.md (luna caída, azul oscuro)
+##   amuleto_mil_islas  — lugares/las-mil-islas.md (archipiélago pirata)
+##   botas_abordaje     — lugares/las-mil-islas.md (piratas [CANON])
 ## efectos: inventario.bonus() suma "vida_max" / "defensa" / "velocidad".
 ## "vida" de la poción lo usará la acción de uso en M4b.
 
@@ -37,4 +41,11 @@ const OBJETOS: Dictionary = {
 			"efectos": {"vida_max": 1}},
 	"cimera_fiera": {"nombre": "Cimera fiera", "stack": 1, "slot": "casco",
 			"efectos": {"velocidad": 10}},
+	# --- objetos del universo Kimerian (M5a) ---
+	"cristal_corinarius": {"nombre": "Cristal de corinarius", "stack": 1,
+			"slot": "cabeza", "efectos": {"vida_max": 2}},
+	"amuleto_mil_islas": {"nombre": "Amuleto de Las Mil Islas", "stack": 1,
+			"slot": "pecho", "efectos": {"defensa": 1}},
+	"botas_abordaje": {"nombre": "Botas de abordaje", "stack": 1,
+			"slot": "botas", "efectos": {"velocidad": 20}},
 }

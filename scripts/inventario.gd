@@ -66,7 +66,9 @@ func equipar(indice: int) -> bool:
 		return false  # no es objeto equipable
 	var anterior = equipados[slot]
 	equipados[slot] = hueco.id
-	huecos[indice] = anterior
+	# El hueco queda como pila normal: null si el slot estaba vacío, o el
+	# objeto que cede su hueco (los equipables son stack 1).
+	huecos[indice] = null if anterior == null else {"id": anterior, "cantidad": 1}
 	actualizado.emit()
 	return true
 

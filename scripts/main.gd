@@ -3,16 +3,17 @@ extends Node2D
 ## Sala principal: construye la habitación, al jugador, cámara, HUD, enemigos
 ## e inventario.
 ## Arranque normal: `godot-headless --path . --quit-after 60` (prueba de carga).
-## Con usuario:    `godot-headless --path . -- --test` — batería de 13
+## Con usuario:    `godot-headless --path . -- --test` — batería de 16
 ## aserciones (movimiento, espada, muerte, contacto, i-frames, stacks,
-## descarte, defensa, velocidad, y la UI: abrir/usar/descartar/cerrar);
-## exit 0 = todo OK.
+## descarte, defensa, velocidad, la UI: abrir/usar/descartar/cerrar, y los
+## 3 objetos Kimerian recogidos de la sala); exit 0 = todo OK.
 
 ## Preloads: sin referencias al class_name global, que headless no resuelve
 ## sin pasar por el editor (evitamos la dependencia del class cache).
 const FICHA_JUGADOR := preload("res://scripts/jugador.gd")
 const FICHA_ENEMIGO := preload("res://scripts/enemigo.gd")
 const FICHA_INVENTARIO := preload("res://scripts/inventario.gd")
+const FICHA_DATOS := preload("res://scripts/datos_objetos.gd")
 const FICHA_UI := preload("res://scripts/ui_inventario.gd")
 const EscenaJugador := preload("res://scenes/jugador.tscn")
 const EscenaEnemigo := preload("res://scenes/enemigo.tscn")
@@ -26,10 +27,19 @@ const ENEMIGOS_MUNDO: Array = [
 	[Vector2(605, 420), true],
 ]
 
+## Objetos del universo Kimerian tirados en la sala: [id, posición]. El jugador
+## los recoge al pisarlos (área con mask = capa 2, la del jugador).
+const RELIQUIAS_MUNDO: Array = [
+	["cristal_corinarius", Vector2(90, 90)],
+	["amuleto_mil_islas", Vector2(710, 90)],
+	["botas_abordaje", Vector2(90, 490)],
+]
+
 var jugador  # dinámico a propósito: sin tipo global (ver preload de arriba)
 var inventario  # RefCounted del inventario (mismo motivo)
 var ui  # CanvasLayer de la UI (mismo motivo)
 var _hud: Label
+var _reliquias: Dictionary = {}  # id -> Area2D en sala (borrado al recoger)
 
 
 func _ready() -> void:
@@ -40,6 +50,7 @@ func _ready() -> void:
 	_crear_hud()
 	_crear_inventario()
 	_crear_ui()
+	_crear_reliquias()
 	_crear_enemigos_mundo(not es_test)  # sin IA en test: nada se mueve solo
 	print("KIMERIAN_LISTO sala=", ANCHO_SALA, "x", ALTO_SALA)
 	if es_test:
@@ -153,6 +164,63 @@ func _crear_enemigos_mundo(con_ia: bool) -> void:
 		add_child(enemigo)
 
 
+func _crear_reliquias() -> void:
+	## Objeto tirado en el suelo: área de recogida + formas simples
+	## (Polygon2D con el color del objeto y Label con su nombre).
+	for fila in RELIQUIAS_MUNDO:
+		var id: String = fila[0]
+		var area := Area2D.new()
+		area.position = fila[1]
+		area.collision_layer = 0
+		area.collision_mask = 2  # capa del jugador
+		var forma := CollisionShape2D.new()
+		var circulo := CircleShape2D.new()
+		circulo.radius = 14.0
+		forma.shape = circulo
+		area.add_child(forma)
+		area.add_child(_visual_reliquia(id))
+		var etiqueta := Label.new()
+		etiqueta.text = FICHA_DATOS.OBJETOS[id].nombre
+		etiqueta.position = Vector2(-56, 14)
+		etiqueta.add_theme_font_size_override("font_size", 10)
+		area.add_child(etiqueta)
+		area.body_entered.connect(func(cuerpo: Node2D) -> void: _recoger(id, area, cuerpo))
+		add_child(area)
+		_reliquias[id] = area
+
+
+func _visual_reliquia(id: String) -> Polygon2D:
+	## Silueta a mano: rombo, octógono o rectángulo según el objeto.
+	var forma := Polygon2D.new()
+	match id:
+		"cristal_corinarius":  # cristal lunar azul oscuro (corinarius)
+			forma.polygon = PackedVector2Array([
+				Vector2(0, -11), Vector2(9, 0), Vector2(0, 11), Vector2(-9, 0)])
+			forma.color = Color("2b5fd9")
+		"amuleto_mil_islas":  # moneda octogonal de oro de Las Mil Islas
+			var pts := PackedVector2Array()
+			for i in 8:
+				pts.append(Vector2.from_angle(TAU * i / 8.0) * 10.0)
+			forma.polygon = pts
+			forma.color = Color("e8c547")
+		_:  # botas de abordaje
+			forma.polygon = PackedVector2Array([
+				Vector2(-8, -11), Vector2(8, -11), Vector2(8, 4),
+				Vector2(13, 8), Vector2(13, 12), Vector2(-8, 12)])
+			forma.color = Color("b06a3b")
+	return forma
+
+
+func _recoger(id: String, area: Area2D, cuerpo: Node2D) -> void:
+	## Entra el jugador ⇒ al inventario. Si no cabe (lleno), el objeto
+	## se queda en la sala.
+	if cuerpo != jugador:
+		return
+	if inventario.agregar(id):
+		_reliquias.erase(id)
+		area.queue_free()
+
+
 # --------------------------------------------------------------------- tests
 
 func _pulsar(accion: String) -> void:
@@ -162,8 +230,8 @@ func _pulsar(accion: String) -> void:
 
 
 func _test_bateria() -> void:
-	## Nueve comprobaciones, una línea por aserción; exit 0 solo si las nueve
-	## dicen OK. Tiempos en segundos de juego (create_timer).
+	## Dieciséis comprobaciones, una línea por aserción; exit 0 solo si las
+	## dieciséis dicen OK. Tiempos en segundos de juego (create_timer).
 	var resultados: Array[String] = []
 
 	# 1) Movimiento: 0,5 s pulsando derecha ⇒ >30 px en X y 5 PV intactos.
@@ -319,6 +387,51 @@ func _test_bateria() -> void:
 	var ok13: bool = not ui.abierto and not jugador.entrada_bloqueada and dx_fin > 20.0
 	resultados.append("TEST_UI_CERRAR dx=%.1f -> %s"
 			% [dx_fin, "OK" if ok13 else "FALLO"])
+
+	# 14) Objeto Kimerian 1: cristal de corinarius en la sala ⇒ al pisarlo entra
+	# en el inventario, su nodo desaparece y, equipado en cabeza, la vida máxima
+	# sube de 5 a 7 (bonus +2).
+	var cristal = _reliquias["cristal_corinarius"]
+	jugador.global_position = cristal.global_position
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # asentar el solape del área
+	var ok14a: bool = inventario.total("cristal_corinarius") == 1 \
+			and not _reliquias.has("cristal_corinarius")
+	var ok14b: bool = ok14a and inventario.equipar(inventario.indice_de("cristal_corinarius"))
+	var ok14: bool = ok14b and inventario.bonus("vida_max") == 2 \
+			and jugador.vida_max == FICHA_JUGADOR.VIDA_MAX + 2
+	resultados.append("TEST_OBJ_K1_CRISTAL recogido=%s vida_max=%d -> %s"
+			% [str(ok14a), jugador.vida_max, "OK" if ok14 else "FALLO"])
+
+	# 15) Objeto Kimerian 2: amuleto de Las Mil Islas ⇒ recogido y equipado en
+	# pecho, la defensa efectiva queda en 1 (el casco de bronce cedió su hueco
+	# de cabeza al cristal en el paso anterior).
+	var amuleto = _reliquias["amuleto_mil_islas"]
+	jugador.global_position = amuleto.global_position
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var ok15a: bool = inventario.total("amuleto_mil_islas") == 1 \
+			and not _reliquias.has("amuleto_mil_islas")
+	var ok15b: bool = ok15a and inventario.equipar(inventario.indice_de("amuleto_mil_islas"))
+	var ok15: bool = ok15b and inventario.bonus("defensa") == 1 \
+			and jugador.defensa == 1
+	resultados.append("TEST_OBJ_K2_AMULETO recogido=%s defensa=%d -> %s"
+			% [str(ok15a), jugador.defensa, "OK" if ok15 else "FALLO"])
+
+	# 16) Objeto Kimerian 3: botas de abordaje ⇒ recogidas y equipadas, sustituyen
+	# a las botas ligeras (+30 ⇒ +20): velocidad efectiva 95 + 20 = 115.
+	var botas = _reliquias["botas_abordaje"]
+	jugador.global_position = botas.global_position
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var ok16a: bool = inventario.total("botas_abordaje") == 1 \
+			and not _reliquias.has("botas_abordaje")
+	var ok16b: bool = ok16a and inventario.equipar(inventario.indice_de("botas_abordaje"))
+	var ok16: bool = ok16b and inventario.bonus("velocidad") == 20 \
+			and is_equal_approx(jugador.velocidad_efectiva,
+					FICHA_JUGADOR.VELOCIDAD + 20.0)
+	resultados.append("TEST_OBJ_K3_BOTAS recogido=%s velocidad=%.0f -> %s"
+			% [str(ok16a), jugador.velocidad_efectiva, "OK" if ok16 else "FALLO"])
 
 	var todos := true
 	for linea in resultados:

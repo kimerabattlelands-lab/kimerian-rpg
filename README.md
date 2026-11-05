@@ -9,7 +9,7 @@ Godot 4.7 · GDScript · pixel art 2D · pensada para exportar a web y probar de
 # prueba de carga (arranca, 60 frames, sale)
 godot-headless --path . --quit-after 60
 
-# test de movimiento (código de salida 0 = OK)
+# test de movimiento, espada, muerte, contacto e i-frames (exit 0 = todo OK)
 godot-headless --path . -- --test
 ```
 
@@ -24,8 +24,8 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
 ## Estado
 
 - [x] M1 — sala + jugador (5 PV, 8 direcciones) + cámara + HUD + test headless
-- [ ] M2 — espada y combate
-- [ ] M3 — enemigos con IA
+- [x] M2 — espada (estocada direccional, CD, retroceso y destello del enemigo)
+- [x] M3 — enemigos con IA (patrulla determinista, persecución, contacto 1 PV, 2 PV de vida)
 - [ ] M4 — inventario (stacks, descarte) y 4 slots de equipo × 3 objetos
 - [ ] M5 — elementos del universo Kimerian (KB de escritura-ia) y arte CC0
 - [ ] M6 — export web + publicación en Telegram

@@ -1,24 +1,59 @@
 class_name Jugador
 extends CharacterBody2D
 
-## Jugador estilo Zelda ALttP: movimiento de 8 direcciones con corte nítido
-## (sin aceleración, como los clásicos), 5 PV, invulnerabilidad breve con
-## parpadeo y retroceso al recibir daño. La espada llega en el siguiente hito.
+## Jugador estilo Zelda ALttP: movimiento de 8 direcciones con corte nítido,
+## 5 PV con invulnerabilidad y retroceso, y espada con estocada en la
+## dirección que mira (hitbox cuadrada adelantada, golpe corto con CD).
 
 signal vida_cambiada(actual: int)
 signal muerto
 
-const VELOCIDAD := 95.0          # px/s ≈ 3 tiles de 32 px por segundo
+const VELOCIDAD := 95.0           # px/s ≈ 3 tiles de 32 px por segundo
 const VIDA_MAX := 5
-const FRAMES_INVULNERABLE := 45  # ~0,75 s a 60 fps
-const FUERZA_RETROCESO := 150.0  # px/s durante el retroceso
-const DURACION_RETROCESO := 0.15 # s
+const FRAMES_INVULNERABLE := 45   # ~0,75 s a 60 fps
+const FUERZA_RETROCESO := 150.0   # px/s durante el retroceso
+const DURACION_RETROCESO := 0.15  # s
+
+const DANO_ESPADA := 1
+const ALCANCE_ESPADA := 20.0      # px de adelanto del centro de la hitbox
+const TAMANO_ESPADA := 24.0       # px de lado
+const DURACION_GOLPE := 0.18      # s
+const ENFRIAMIENTO_ATAQUE := 0.35 # s de espera tras cada golpe
 
 var vida: int = VIDA_MAX
-var direccion: Vector2 = Vector2.DOWN  # última dirección de movimiento (para sprite/espada)
+var direccion: Vector2 = Vector2.DOWN  # última dirección (sprite y espada)
 var _invulnerable: int = 0
 var _retroceso: float = 0.0
 var _empuje: Vector2 = Vector2.ZERO
+var _golpeando: float = 0.0
+var _cd_ataque: float = 0.0
+var _ya_golpeados: Array = []  # cuerpos ya tocados en esta estocada
+
+var espada: Area2D
+
+
+func _ready() -> void:
+	_crear_espada()
+
+
+func _crear_espada() -> void:
+	espada = Area2D.new()
+	espada.collision_layer = 0
+	espada.collision_mask = 4  # capa enemigo
+	var forma := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(TAMANO_ESPADA, TAMANO_ESPADA)
+	forma.shape = rect
+	espada.add_child(forma)
+	var hoja := Polygon2D.new()
+	var h := TAMANO_ESPADA / 2.0
+	hoja.polygon = PackedVector2Array([
+		Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)])
+	hoja.color = Color(0.78, 0.8, 0.86)
+	espada.add_child(hoja)
+	add_child(espada)
+	espada.visible = false
+	espada.monitoring = true  # siempre activa: miramos solapes durante el golpe
 
 
 func _physics_process(delta: float) -> void:
@@ -27,6 +62,15 @@ func _physics_process(delta: float) -> void:
 		$Cuerpo.visible = (_invulnerable / 3) % 2 == 0  # parpadeo rápido
 	else:
 		$Cuerpo.visible = true
+
+	if _cd_ataque > 0.0:
+		_cd_ataque -= delta
+	if _golpeando > 0.0:
+		_golpeando -= delta
+		_procesar_golpe()
+		if _golpeando <= 0.0:
+			espada.visible = false
+			_ya_golpeados.clear()
 
 	if _retroceso > 0.0:
 		_retroceso -= delta
@@ -38,7 +82,32 @@ func _physics_process(delta: float) -> void:
 			velocity = direccion * VELOCIDAD
 		else:
 			velocity = Vector2.ZERO  # corte nítido al soltar
+		if Input.is_action_just_pressed("atacar") and _cd_ataque <= 0.0:
+			_atacar()
 	move_and_slide()
+
+
+func _atacar() -> void:
+	_golpeando = DURACION_GOLPE
+	_cd_ataque = DURACION_GOLPE + ENFRIAMIENTO_ATAQUE
+	_ya_golpeados.clear()
+	espada.visible = true
+	_posicionar_espada()
+
+
+func _posicionar_espada() -> void:
+	espada.global_position = global_position + direccion * ALCANCE_ESPADA
+	espada.rotation = direccion.angle()
+
+
+func _procesar_golpe() -> void:
+	_posicionar_espada()
+	for cuerpo in espada.get_overlapping_bodies():
+		if cuerpo in _ya_golpeados:
+			continue
+		_ya_golpeados.append(cuerpo)
+		if cuerpo.has_method("recibir_danio"):
+			cuerpo.recibir_danio(DANO_ESPADA, global_position)
 
 
 func recibir_danio(cantidad: int, origen: Vector2) -> bool:

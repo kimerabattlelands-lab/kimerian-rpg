@@ -48,7 +48,11 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
   Verificado con `curl`: 200 en `index.html`, `index.wasm` (39.514.754 B) y `index.pck` (59.172 B).
   El export termina en signal 11 al salir (misma incidencia mono que `--import`): **exporta bien y revienta
   al cerrar**; el build es válido.
-- [ ] M6 (resto) — publicarlo como enlace jugable en Telegram y probar en el móvil de Edward.
+- [x] M6 (resto) — **enlace público sin Tailscale**, autorizado por Edward (2026-11-05): repo
+  `kimerabattlelands-lab/kimerian-rpg` pasado a **público**, build copiado a `docs/` y GitHub Pages
+  servido desde `main:/docs`. Verificado: `index.html=200`, `index.wasm=200` (39.514.754 B),
+  `index.js=200` en https://kimerabattlelands-lab.github.io/kimerian-rpg/
+  (el servicio tailnet `kimerian-web:8099` queda como opción local).
 
 ## Cómo jugar
 

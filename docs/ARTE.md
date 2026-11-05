@@ -40,12 +40,18 @@ Ningún fichero procede de un tercero: no había pack en el disco.
   `scripts/main.gd` crea un Sprite2D con `sprites.gd.textura(id)`; el nombre
   del PNG es el id del objeto en `datos_objetos.gd`.
 
-## Nota técnica (pendiente de Orakle)
+## Nota técnica (2026-11-05, tras el bug del enlace público)
 
-El binario Godot mono local no puede importar recursos:
-`godot-headless --path . --import` revienta con **signal 11** al arranque
-(incidencia `pasarela/entrada/2026-11-05-0540-kojima-incidencia-godot-import-signal11.md`,
-abierta a Orakle). Por eso los PNG se leen en runtime con
-`Image.load("res://arte/…")` en vez de pasar por el importador: mismo
-resultado visual, sin `.import`. Cuando Orakle resuelva, se puede migrar a
-`ext_resource`/import normal sin cambiar los PNG ni esta tabla.
+1. **Los imports existen**: `arte/*.png.import` + `.godot/imported/*.ctex` (los5 PNG) — el
+   importador ya corrió; el crash `signal 11` del `--import` mono local sigue abierto a Orakle
+   (`pasarela/entrada/2026-11-05-0540-kojima-incidencia-godot-import-signal11.md`) pero ya no
+   bloquea nada.
+2. **Bug real encontrado con el primer test en el móvil de Edward**: la primera versión usaba
+   `Image.load("res://arte/…")` en runtime y Godot lo rechaza en export — WARNING literal
+   *«Loaded resource as image file, this will not work on export»* → sprites invisibles (suelo y
+   HUD se veían, personaje no). Reproducido con `godot-headless --main-pack build/index.pck`.
+3. **Solución**: `sprites.gd` resuelve por `preload()` (compilado a `.gdc` con la base de imports
+   disponible → en export referencia el `.ctex`). Verificado: `--main-pack` con **0 warnings de
+   imagen, 0 errores, exit 0**.
+4. **Export desde La Oficina** (`godot-oficina` / ssh, Godot del sistema): el mono local ya ni
+   arranca para exportar (signal 11 al inicio). Comando exacto en README.

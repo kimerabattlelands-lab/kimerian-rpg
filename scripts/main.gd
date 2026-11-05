@@ -3,15 +3,17 @@ extends Node2D
 ## Sala principal: construye la habitación, al jugador, cámara, HUD, enemigos
 ## e inventario.
 ## Arranque normal: `godot-headless --path . --quit-after 60` (prueba de carga).
-## Con usuario:    `godot-headless --path . -- --test` — batería de 9
+## Con usuario:    `godot-headless --path . -- --test` — batería de 13
 ## aserciones (movimiento, espada, muerte, contacto, i-frames, stacks,
-## descarte, defensa del equipo, velocidad del equipo); exit 0 = todo OK.
+## descarte, defensa, velocidad, y la UI: abrir/usar/descartar/cerrar);
+## exit 0 = todo OK.
 
 ## Preloads: sin referencias al class_name global, que headless no resuelve
 ## sin pasar por el editor (evitamos la dependencia del class cache).
 const FICHA_JUGADOR := preload("res://scripts/jugador.gd")
 const FICHA_ENEMIGO := preload("res://scripts/enemigo.gd")
 const FICHA_INVENTARIO := preload("res://scripts/inventario.gd")
+const FICHA_UI := preload("res://scripts/ui_inventario.gd")
 const EscenaJugador := preload("res://scenes/jugador.tscn")
 const EscenaEnemigo := preload("res://scenes/enemigo.tscn")
 
@@ -26,6 +28,7 @@ const ENEMIGOS_MUNDO: Array = [
 
 var jugador  # dinámico a propósito: sin tipo global (ver preload de arriba)
 var inventario  # RefCounted del inventario (mismo motivo)
+var ui  # CanvasLayer de la UI (mismo motivo)
 var _hud: Label
 
 
@@ -36,6 +39,7 @@ func _ready() -> void:
 	_crear_jugador()
 	_crear_hud()
 	_crear_inventario()
+	_crear_ui()
 	_crear_enemigos_mundo(not es_test)  # sin IA en test: nada se mueve solo
 	print("KIMERIAN_LISTO sala=", ANCHO_SALA, "x", ALTO_SALA)
 	if es_test:
@@ -49,6 +53,9 @@ func _registrar_entradas() -> void:
 		"mover_izq": [KEY_A, KEY_LEFT],
 		"mover_der": [KEY_D, KEY_RIGHT],
 		"atacar": [KEY_SPACE, KEY_J, KEY_X],
+		"abrir_inventario": [KEY_I, KEY_TAB],
+		"usar": [KEY_E, KEY_ENTER],
+		"descartar": [KEY_Q],
 	}
 	for accion in teclas:
 		if InputMap.has_action(accion):
@@ -128,6 +135,13 @@ func _crear_inventario() -> void:
 	inventario = FICHA_INVENTARIO.new()
 	jugador.inventario = inventario
 	inventario.actualizado.connect(func() -> void: jugador.refrescar_estadisticas())
+
+
+func _crear_ui() -> void:
+	ui = FICHA_UI.new()
+	ui.inventario = inventario
+	ui.jugador = jugador
+	add_child(ui)
 
 
 func _crear_enemigos_mundo(con_ia: bool) -> void:
@@ -259,6 +273,52 @@ func _test_bateria() -> void:
 	resultados.append("TEST_EQUIPO_VEL velocidad=%.0f -> %s"
 			% [jugador.velocidad_efectiva, "OK" if ok9 else "FALLO"])
 	enemigo3.queue_free()
+
+	# 10) UI: [I] abre ⇒ panel visible, jugador bloqueado y sin moverse.
+	inventario.agregar("pocion", 1)  # el hueco 0 siempre está libre: ahí cae
+	await _pulsar("abrir_inventario")
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # asentar el bloqueo antes de medir
+	var pos_ui: Vector2 = jugador.global_position
+	await _pulsar_mantenido("mover_der", 0.3)
+	var dx_ui: float = jugador.global_position.x - pos_ui.x
+	var ok10: bool = ui.abierto and jugador.entrada_bloqueada and absf(dx_ui) < 1.0
+	resultados.append("TEST_UI_ABRIR abierto=%s dx=%.1f -> %s"
+			% [str(ui.abierto), dx_ui, "OK" if ok10 else "FALLO"])
+
+	# 11) [E] usa la poción del cursor: cura 4 → 5 PV y consume la unidad.
+	var pociones_antes: int = inventario.total("pocion")
+	await _pulsar("usar")
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # asentar: la UI reacciona con un frame de retardo
+	var ok11: bool = jugador.vida == FICHA_JUGADOR.VIDA_MAX \
+			and inventario.total("pocion") == pociones_antes - 1
+	resultados.append("TEST_UI_USAR vida=%d pociones=%d -> %s"
+			% [jugador.vida, inventario.total("pocion"), "OK" if ok11 else "FALLO"])
+
+	# 12) [↓] salta al siguiente hueco ocupado (monedas) y [Q] tira la pila.
+	await _pulsar("mover_abajo")
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # asentar el cursor
+	var monedas_antes: int = inventario.total("moneda")
+	await _pulsar("descartar")
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # asentar el descarte
+	var ok12: bool = ui.cursor == 1 and inventario.total("moneda") == monedas_antes - 99
+	resultados.append("TEST_UI_DESCARTE cursor=%d monedas=%d -> %s"
+			% [ui.cursor, inventario.total("moneda"), "OK" if ok12 else "FALLO"])
+
+	# 13) [I] cierra ⇒ desbloquea y vuelve a andar.
+	await _pulsar("abrir_inventario")
+	await get_tree().physics_frame
+	await get_tree().physics_frame  # asentar el cierre
+	var pos_fin: Vector2 = jugador.global_position
+	await _pulsar_mantenido("mover_der", 0.4)
+	await get_tree().physics_frame
+	var dx_fin: float = jugador.global_position.x - pos_fin.x
+	var ok13: bool = not ui.abierto and not jugador.entrada_bloqueada and dx_fin > 20.0
+	resultados.append("TEST_UI_CERRAR dx=%.1f -> %s"
+			% [dx_fin, "OK" if ok13 else "FALLO"])
 
 	var todos := true
 	for linea in resultados:

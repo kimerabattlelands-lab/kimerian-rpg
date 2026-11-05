@@ -9,7 +9,7 @@ Godot 4.7 · GDScript · pixel art 2D · pensada para exportar a web y probar de
 # prueba de carga (arranca, 60 frames, sale)
 godot-headless --path . --quit-after 60
 
-# test de movimiento, espada, muerte, contacto e i-frames (exit 0 = todo OK)
+# batería de 13 aserciones (movimiento, combate, inventario, equipo, UI) — exit 0 = todo OK
 godot-headless --path . -- --test
 ```
 
@@ -28,7 +28,8 @@ godot-oficina --headless --path . --export-release "Web" build/index.html
 - [x] M3 — enemigos con IA (patrulla determinista, persecución, contacto 1 PV, 2 PV de vida)
 - [x] M4a — inventario (modelo): stacks con tope, desbordamiento a 16 huecos, descarte de pila,
   4 slots de equipo × 3 objetos con propiedades (defensa/velocidad/vida_max) aplicadas al jugador
-- [ ] M4b — UI de inventario en pantalla: abrir/cerrar, navegar, usar poción, equipar y descartar
+- [x] M4b — UI de inventario en pantalla: abrir/cerrar con [I], navegar [↑↓], usar/equipar [E],
+  descartar pila [Q]; bloquea al jugador mientras está abierta (el mundo sigue)
 - [ ] M5 — elementos del universo Kimerian (KB de escritura-ia) y arte CC0
 - [ ] M6 — export web + publicación en Telegram
 

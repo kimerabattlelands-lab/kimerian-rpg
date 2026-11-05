@@ -115,3 +115,15 @@ func indice_de(id: String) -> int:
 		if huecos[i] != null and huecos[i].id == id:
 			return i
 	return -1
+
+
+func quitar_uno(indice: int) -> bool:
+	## Consume una unidad; si era la última, vacía el hueco (fin de la pila).
+	if indice < 0 or indice >= MAX_HUECOS or huecos[indice] == null:
+		return false
+	var hueco: Dictionary = huecos[indice]
+	hueco.cantidad -= 1
+	if hueco.cantidad <= 0:
+		huecos[indice] = null
+	actualizado.emit()
+	return true

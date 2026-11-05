@@ -25,6 +25,7 @@ var vida_max: int = VIDA_MAX          # base + bonus del equipo
 var defensa: int = 0                  # suma de bonus "defensa" del equipo
 var velocidad_efectiva: float = VELOCIDAD  # base + bonus "velocidad" del equipo
 var inventario                         # asignado por main; RefCounted dinámico
+var entrada_bloqueada: bool = false    # la UI del inventario lo levanta
 var direccion: Vector2 = Vector2.DOWN  # última dirección (sprite y espada)
 var _invulnerable: int = 0
 var _retroceso: float = 0.0
@@ -79,6 +80,8 @@ func _physics_process(delta: float) -> void:
 	if _retroceso > 0.0:
 		_retroceso -= delta
 		velocity = _empuje
+	elif entrada_bloqueada:
+		velocity = Vector2.ZERO  # inventario abierto: quieto (i-frames siguen)
 	else:
 		var entrada := Input.get_vector("mover_izq", "mover_der", "mover_arriba", "mover_abajo")
 		if entrada != Vector2.ZERO:
@@ -145,3 +148,12 @@ func refrescar_estadisticas() -> void:
 	defensa = inventario.bonus("defensa")
 	velocidad_efectiva = VELOCIDAD + inventario.bonus("velocidad")
 	vida_cambiada.emit(vida)
+
+
+func curar(cantidad: int) -> bool:
+	## Devuelve false si no había nada que curar (ya a tope o caído).
+	if vida <= 0 or vida >= vida_max:
+		return false
+	vida = mini(vida_max, vida + cantidad)
+	vida_cambiada.emit(vida)
+	return true

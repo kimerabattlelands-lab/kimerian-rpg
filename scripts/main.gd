@@ -3,11 +3,12 @@ extends Node2D
 ## Sala principal: construye la habitación, al jugador, cámara, HUD, enemigos
 ## e inventario.
 ## Arranque normal: `godot-headless --path . --quit-after 60` (prueba de carga).
-## Con usuario:    `godot-headless --path . -- --test` — batería de 20
+## Con usuario:    `godot-headless --path . -- --test` — batería de 22
 ## aserciones (movimiento, espada, muerte, contacto, i-frames, stacks,
 ## descarte, defensa, velocidad, la UI: abrir/usar/descartar/cerrar, los
-## 3 objetos Kimerian recogidos de la sala, y controles táctiles: mover,
-## ataque y botón de objetos); exit 0 = todo OK.
+## 3 objetos Kimerian recogidos de la sala, controles táctiles: mover,
+## ataque y botón de objetos, y los botones USAR/TIRAR/CERRAR del panel);
+## exit 0 = todo OK.
 
 ## Preloads: sin referencias al class_name global, que headless no resuelve
 ## sin pasar por el editor (evitamos la dependencia del class cache).
@@ -225,8 +226,8 @@ func _pulsar(accion: String) -> void:
 
 
 func _test_bateria() -> void:
-	## Veinte comprobaciones, una línea por aserción; exit 0 solo si las
-	## veinte dicen OK. Tiempos en segundos de juego (create_timer).
+	## Veintidós comprobaciones, una línea por aserción; exit 0 solo si las
+	## veintidós dicen OK. Tiempos en segundos de juego (create_timer).
 	var resultados: Array[String] = []
 
 	# 1) Movimiento: 0,5 s pulsando derecha ⇒ >30 px en X y 5 PV intactos.
@@ -491,6 +492,39 @@ func _test_bateria() -> void:
 	var ok20: bool = golpe_rapido
 	resultados.append("TEST_TACTIL_TOQUE_RAPIDO espada=%s -> %s"
 			% [str(golpe_rapido), "OK" if ok20 else "FALLO"])
+
+	# 21) Botones del panel: con una poción en el cursor, USAR cura y consume;
+	# los tres botones están visibles solo con el panel abierto.
+	inventario.descartar(0)          # hueco 0 libre para la poción
+	inventario.agregar("pocion", 1)
+	await _pulsar("abrir_inventario")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	await _pulsar("mover_arriba")    # cursor del hueco 1 (libre) al 0 (poción)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	jugador.vida = 4  # herida artificial: el equipo actual tiene el máximo en 7
+	var vida_antes: int = jugador.vida
+	var btn_usar: Button = ui.botones["usar"]
+	btn_usar.pressed.emit()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var ok21: bool = btn_usar.visible and ui.botones["tirar"].visible \
+			and ui.botones["cerrar"].visible \
+			and jugador.vida == vida_antes + 2 \
+			and inventario.total("pocion") == 0
+	resultados.append("TEST_BOTONES_USAR vida=%d->%d pociones=%d -> %s"
+			% [vida_antes, jugador.vida, inventario.total("pocion"),
+			   "OK" if ok21 else "FALLO"])
+
+	# 22) Botón CERRAR ⇒ sale del panel sin teclado (la duda de Edward en móvil).
+	var btn_cerrar: Button = ui.botones["cerrar"]
+	btn_cerrar.pressed.emit()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var ok22: bool = not ui.abierto and not jugador.entrada_bloqueada
+	resultados.append("TEST_BOTON_CERRAR cerrado=%s -> %s"
+			% [str(not ui.abierto), "OK" if ok22 else "FALLO"])
 
 	var todos := true
 	for linea in resultados:

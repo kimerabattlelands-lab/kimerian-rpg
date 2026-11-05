@@ -16,6 +16,7 @@ var cursor: int = 0
 var _fondo: ColorRect
 var _izq: Label
 var _der: Label
+var botones: Dictionary = {}  # nombre -> Button (lo lee el test)
 
 
 func _ready() -> void:
@@ -33,6 +34,7 @@ func _ready() -> void:
 	_der.position = Vector2(372, 10)
 	_der.add_theme_font_size_override("font_size", 16)
 	add_child(_der)
+	_crear_botones_tactiles()
 	cerrar()  # arranca cerrada (es seguro: main asigna jugador antes de add_child)
 	if inventario != null:
 		inventario.actualizado.connect(_si_abierto)
@@ -52,8 +54,29 @@ func _physics_process(_delta: float) -> void:
 	elif Input.is_action_just_pressed("usar"):
 		_usar()
 	elif Input.is_action_just_pressed("descartar"):
-		inventario.descartar(cursor)
-		_pintar()
+		_descartar()
+	elif Input.is_action_just_pressed("atacar"):
+		_usar()  # en móvil, el botón A = usar/equipar con el panel abierto
+
+
+func _crear_botones_tactiles() -> void:
+	## Franja inferior (fuera de las zonas del pad: x 240-500): USAR / TIRAR /
+	## CERRAR. Capa 10 ⇒ por encima de todo; los botones GUI responden al toque
+	## y su `pressed` llama a la MISMA lógica que E/Q/I del teclado.
+	var modelos := {
+		"usar": [Vector2(240, 312), "USAR", _usar],
+		"tirar": [Vector2(326, 312), "TIRAR", _descartar],
+		"cerrar": [Vector2(412, 312), "CERRAR", cerrar],
+	}
+	for nombre in modelos:
+		var b := Button.new()
+		b.position = modelos[nombre][0]
+		b.size = Vector2(80, 34)
+		b.text = modelos[nombre][1]
+		b.add_theme_font_size_override("font_size", 14)
+		b.pressed.connect(modelos[nombre][2])
+		add_child(b)
+		botones[nombre] = b
 
 
 func abrir() -> void:
@@ -63,6 +86,8 @@ func abrir() -> void:
 	_fondo.visible = true
 	_izq.visible = true
 	_der.visible = true
+	for b in botones.values():
+		b.visible = true
 	_pintar()
 
 
@@ -73,6 +98,8 @@ func cerrar() -> void:
 	_fondo.visible = false
 	_izq.visible = false
 	_der.visible = false
+	for b in botones.values():
+		b.visible = false
 
 
 func _si_abierto() -> void:
@@ -90,6 +117,11 @@ func _mover_cursor(paso: int) -> void:
 			cursor = i
 			_pintar()
 			return
+
+
+func _descartar() -> void:
+	inventario.descartar(cursor)
+	_pintar()
 
 
 func _usar() -> void:
@@ -127,7 +159,6 @@ func _pintar() -> void:
 		var id = inventario.equipados[slot]
 		equipo.append("  %s: %s" % [slot, "—" if id == null else DATOS.OBJETOS[id].nombre])
 	equipo.append("")
-	equipo.append("[E] usar/equipar")
-	equipo.append("[Q] descartar pila")
-	equipo.append("[I] cerrar")
+	equipo.append("[E] usar · [Q] tirar · [I] cerrar")
+	equipo.append("o los botones de abajo (táctil)")
 	_der.text = "\n".join(equipo)
